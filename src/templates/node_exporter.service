@@ -1,0 +1,13 @@
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+Type=simple
+User=node_exporter
+Group=node_exporter
+EnvironmentFile=/etc/sysconfig/node_exporter
+ExecStart=/usr/bin/node_exporter $OPTIONS
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,27 @@
+name: prometheus-node-exporter
+summary: >
+    Export machine metrics to Prometheus.
+
+maintainers:
+    - OmniVector Solutions <admin@omnivector.solutions>
+    - Heitor de Bittencourt <heitor.bittencourt@omnivector.solutions>
+
+description: >
+    Prometheus exporter for hardware and OS metrics exposed by *NIX kernels,
+    written in Go with pluggable metric collectors.
+
+tags:
+    - monitoring
+    - prometheus
+    - exporter
+
+subordinate: true
+
+requires:
+  juju-info:
+    interface: juju-info
+    scope: container
+
+provides:
+  prometheus:
+    interface: prometheus

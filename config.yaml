@@ -1,0 +1,10 @@
+options:
+  node-exporter-version:
+    type: string
+    default: "1.2.0"
+    description: >
+      The node-exporter version to install.
+  listen-address:
+    type: string
+    default: "0.0.0.0:9100"
+    description: The address to listen to.
