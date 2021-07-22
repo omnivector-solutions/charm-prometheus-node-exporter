@@ -5,7 +5,28 @@ machine metrics.
 
 ## Quickstart
 
+Deploy the `prometheus-node-exporter` charm and relate it to the units you want
+to export the metrics:
 
+```bash
+$ juju deploy prometheus-node-exporter
+$ juju relate prometheus-node-exporter foo
+```
+
+The charm can register it's scrape target with Prometheus via relation to the
+[Prometheus charm](https://charmhub.io/prometheus2):
+
+```bash
+$ juju relate prometheus-node-exporter prometheus2
+```
+
+## Developing
+
+We supply a `Makefile` with a target to build the charm:
+
+```bash
+$ make charm
+```
 
 ## Contact
 
