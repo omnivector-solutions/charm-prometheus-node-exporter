@@ -41,6 +41,9 @@ class NodeExporterCharm(CharmBase):
         self.framework.observe(self.on.start, self._on_start)
         self.framework.observe(self.on.stop, self._on_stop)
 
+        # action hooks
+        self.framework.observe(self.on.get_labels_action, self._on_get_labels_action)
+
     @property
     def port(self):
         """Return the port that node-exporter listens to."""
@@ -73,7 +76,7 @@ class NodeExporterCharm(CharmBase):
         _render_sysconfig(params)
         subprocess.call(["systemctl", "restart", "node_exporter"])
 
-        self.prometheus.set_host_port()
+        self.prometheus.set_relation_data()
 
     def _on_start(self, event):
         logger.debug("## Starting daemon")
@@ -89,6 +92,18 @@ class NodeExporterCharm(CharmBase):
     def _set_charm_version(self):
         """Set the application version for Juju Status."""
         self.unit.set_workload_version(Path("version").read_text().strip())
+
+    def assemble_labels(self) -> dict:
+        """Parse configs and actions to assemble metrics labels."""
+
+        labels = self.model.config.get("labels").replace('', '')
+        logger.debug(f"## got {labels} from config")
+
+        return labels
+
+    def _on_get_labels_action(self, event) -> None:
+        labels = self.assemble_labels()
+        event.set_results(labels)
 
 
 def _install_node_exporter(version: str, arch: str = "amd64"):

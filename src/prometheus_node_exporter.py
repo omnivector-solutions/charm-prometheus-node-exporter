@@ -27,11 +27,11 @@ class Prometheus(Object):
 
     def _on_relation_created(self, event):
         logger.debug("## Relation created with prometheus")
-        self.set_host_port()
+        self.set_relation_data()
 
-    def set_host_port(self):
-        """Set hostname and port in the relation data."""
-        logger.debug("## set_host_port")
+    def set_relation_data(self):
+        """Set the relation data."""
+        logger.debug("## Setting prometheus2 relation data")
 
         if self._relation:
             relation_data = self._relation.data.get(self.model.unit)
@@ -43,3 +43,7 @@ class Prometheus(Object):
                 relation_data['hostname'] = host
                 relation_data['port'] = port
                 relation_data['metrics_path'] = "/metrics"
+
+                labels = self._charm.assemble_labels()
+                logger.debug(f"## Setting labels in prometheus {labels}")
+                relation_data["labels"] = labels

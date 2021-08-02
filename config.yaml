@@ -8,3 +8,10 @@ options:
     type: string
     default: "0.0.0.0:9100"
     description: The address to listen to.
+  labels:
+    type: string
+    default: ""
+    description: >
+      Comma-separated list of custom labels for the metrics exported.
+
+      Example: 'foo=bar, key=value'
