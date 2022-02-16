@@ -21,14 +21,17 @@ class COSProxyCharmTest(unittest.TestCase):
 
         # relation created evt
         with patch.object(prometheus, 'set_host_port') as mock:
-            rel_id = self.harness.add_relation(rel_name, "prometheus2")
+            self.harness.add_relation(rel_name, 'prometheus')
+            rel = self.harness.charm.model.get_relation(rel_name)
+            rel_id = rel.id
+            key_values = {"private-address": "127.4.5.6"}
+            self.harness.add_relation_unit(rel_id, "prometheus/1")
+            self.harness.update_relation_data(rel_id, "prometheus/1", key_values)
+
         # verify that it would have been called
         mock.assert_called_once()
         # call it
         prometheus.set_host_port()
-
-        assert prometheus._relation
-        print(prometheus._relation.data)
 
         # verify the databag contents
         unit_name = 'prometheus-node-exporter/0'
