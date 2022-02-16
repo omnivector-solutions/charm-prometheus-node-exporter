@@ -2,27 +2,29 @@ from xml.etree.ElementPath import ops
 import pytest
 
 from pytest_operator.plugin import OpsTest
+from requests import get
+
+from tests.integration.helpers import get_unit_address
 
 
 @pytest.mark.abort_on_fail
 async def test_deploy(prometheus_node_exporter_charm, ops_test: OpsTest):
     await ops_test.model.deploy('ubuntu', num_units=3)
     await ops_test.model.deploy('telegraf', num_units=0)
-    
+
     # subordinate charms
     await ops_test.model.add_relation(
-        'telegraf:juju-info', 
+        'telegraf:juju-info',
         'ubuntu:juju-info'
     )
-    await ops_test.model.wait_for_idle(wait_for_active=True)
-    
-    
+    await ops_test.model.wait_for_idle(status='active')
+
     await ops_test.model.deploy(prometheus_node_exporter_charm, num_units=0)
     await ops_test.model.add_relation(
         'prometheus-node-exporter:juju-info',
         'ubuntu:juju-info'
     )
-    await ops_test.model.wait_for_idle(wait_for_active=True)
+    await ops_test.model.wait_for_idle(status='active')
 
     # prom2
     await ops_test.model.deploy('prometheus2')
@@ -34,9 +36,15 @@ async def test_deploy(prometheus_node_exporter_charm, ops_test: OpsTest):
         'prometheus2:scrape',
         'prometheus-node-exporter:prometheus'
     )
-    await ops_test.model.wait_for_idle(wait_for_active=True)
-    
-    
-async def test_status(ops_test):
-    unit = ops_test.model.applications["prometheus-node-exporter"].units[0]
-    assert unit.workload_status == "active"
+    await ops_test.model.wait_for_idle(status='active')
+
+
+@pytest.mark.xfail
+async def test_node_exporter_listening(ops_test):
+    # node exporter does not have units (it's subordinate, so we get the unit
+    # address from 'ubuntu' units); the node exporter will be listening at port
+    # 9100
+    for i in range(3):
+        address = get_unit_address(ops_test, "ubuntu", i)
+        url = f"http://{await address}:9100/metrics"
+        assert get(url).status_code == 200, f'prometheus-node-exporter unreachable at {url}'
