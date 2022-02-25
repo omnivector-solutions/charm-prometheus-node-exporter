@@ -2,10 +2,10 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import shutil
-from pathlib import Path
+"""Pytest configuration."""
 
 import pytest
+from pathlib import Path
 from pytest_operator.plugin import OpsTest
 
 

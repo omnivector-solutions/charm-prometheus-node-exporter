@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 
+"""COS Proxy Charm Test."""
+
+import charm
 import subprocess
 import unittest
-from unittest.mock import patch
 from ops.testing import Harness
-import charm
+from unittest.mock import patch
 
 
 @patch.object(subprocess, "call", new=lambda *args, **kwargs: None)
 class COSProxyCharmTest(unittest.TestCase):
+    """Charm test."""
     def setUp(self):
+        """Set the harness up."""
         self.harness = Harness(charm.NodeExporterCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
     def test_prometheus_relation(self):
+        """Check that the charm and prom are related."""
         prometheus = self.harness.charm.prometheus
         rel_name = prometheus._relation_name
         self.assertEqual(prometheus._relation_name, rel_name)

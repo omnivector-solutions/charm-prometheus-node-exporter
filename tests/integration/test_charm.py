@@ -1,6 +1,6 @@
-from xml.etree.ElementPath import ops
-import pytest
+"""Charm integration tests."""
 
+import pytest
 from pytest_operator.plugin import OpsTest
 from requests import get
 
@@ -9,14 +9,10 @@ from tests.integration.helpers import get_unit_address
 
 @pytest.mark.abort_on_fail
 async def test_deploy(prometheus_node_exporter_charm, ops_test: OpsTest):
+    """Verify that the deployment is successful."""
     await ops_test.model.deploy('ubuntu', num_units=3)
-    await ops_test.model.deploy('telegraf', num_units=0)
 
     # subordinate charms
-    await ops_test.model.add_relation(
-        'telegraf:juju-info',
-        'ubuntu:juju-info'
-    )
     await ops_test.model.wait_for_idle(status='active')
 
     await ops_test.model.deploy(prometheus_node_exporter_charm, num_units=0)
@@ -29,10 +25,6 @@ async def test_deploy(prometheus_node_exporter_charm, ops_test: OpsTest):
     # prom2
     await ops_test.model.deploy('prometheus2')
     await ops_test.model.add_relation(
-        'prometheus2:target',
-        'telegraf:prometheus-client'
-    )
-    await ops_test.model.add_relation(
         'prometheus2:scrape',
         'prometheus-node-exporter:prometheus'
     )
@@ -41,6 +33,7 @@ async def test_deploy(prometheus_node_exporter_charm, ops_test: OpsTest):
 
 @pytest.mark.xfail
 async def test_node_exporter_listening(ops_test):
+    """Check that the node exporter is ready."""
     # node exporter does not have units (it's subordinate, so we get the unit
     # address from 'ubuntu' units); the node exporter will be listening at port
     # 9100
