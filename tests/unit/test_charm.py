@@ -12,6 +12,7 @@ from unittest.mock import patch
 @patch.object(subprocess, "call", new=lambda *args, **kwargs: None)
 class COSProxyCharmTest(unittest.TestCase):
     """Charm test."""
+
     def setUp(self):
         """Set the harness up."""
         self.harness = Harness(charm.NodeExporterCharm)
@@ -20,18 +21,21 @@ class COSProxyCharmTest(unittest.TestCase):
 
     def test_prometheus_relation(self):
         """Check that the charm and prom are related."""
-        prometheus = self.harness.charm.prometheus
-        rel_name = prometheus._relation_name
-        self.assertEqual(prometheus._relation_name, rel_name)
+        charm = self.harness.charm
+        prometheus = charm.prometheus
 
         # relation created evt
         with patch.object(prometheus, 'set_host_port') as mock:
-            self.harness.add_relation(rel_name, 'prometheus')
-            rel = self.harness.charm.model.get_relation(rel_name)
-            rel_id = rel.id
-            key_values = {"private-address": "127.4.5.6"}
+            rel_id = self.harness.add_relation(
+                prometheus._relation_name,
+                'prometheus')
+            key_values = {"ingress-address": "127.4.5.6"}
             self.harness.add_relation_unit(rel_id, "prometheus/1")
-            self.harness.update_relation_data(rel_id, "prometheus/1", key_values)
+            self.harness.update_relation_data(
+                rel_id,
+                charm.unit.name,
+                key_values
+            )
 
         # verify that it would have been called
         mock.assert_called_once()
@@ -39,7 +43,10 @@ class COSProxyCharmTest(unittest.TestCase):
         prometheus.set_host_port()
 
         # verify the databag contents
-        unit_name = 'prometheus-node-exporter/0'
-        relation_databag = prometheus._relation.data[self.harness.charm.model.unit]
-        rel_data = self.harness.get_relation_data(rel_id, unit_name)
-        self.assertEqual(relation_databag, rel_data)
+        rel_data = self.harness.get_relation_data(rel_id, charm.unit.name)
+        assert rel_data == {
+            'ingress-address': '127.4.5.6',
+            'hostname': '127.4.5.6',
+            'port': '9100',
+            'metrics_path': '/metrics'
+        }
