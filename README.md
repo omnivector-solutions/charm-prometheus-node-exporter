@@ -28,6 +28,9 @@ We supply a `Makefile` with a target to build the charm:
 $ make charm
 ```
 
+## Testing
+Run `tox -e ALL` to run unit + integration tests and verify linting.
+
 ## Contact
 
 **We want to hear from you!**

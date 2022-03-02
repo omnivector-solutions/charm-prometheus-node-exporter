@@ -3,3 +3,6 @@ version
 build
 .tox
 .build
+__pycache__/
+*.py[cod]
+.coverage
