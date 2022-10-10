@@ -20,7 +20,9 @@ from ops.charm import CharmBase
 from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus
 
+from juju_topology import JujuTopology
 from prometheus_node_exporter import Prometheus
+from prometheus_node_exporter_peer import NodeExporterPeer
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,8 @@ class NodeExporterCharm(CharmBase):
         """Initialize charm."""
         super().__init__(*args)
 
-        self.prometheus = Prometheus(self, "prometheus")
+        self._prometheus = Prometheus(self, "metrics-endpoint")
+        self.node_exporter_peer = NodeExporterPeer(self, "node-exporter-peer")
 
         # juju core hooks
         self.framework.observe(self.on.install, self._on_install)
@@ -40,11 +43,20 @@ class NodeExporterCharm(CharmBase):
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.start, self._on_start)
         self.framework.observe(self.on.stop, self._on_stop)
+        # NodeExporterPeer
+        self.framework.observe(
+            self.node_exporter_peer.on.node_exporter_peer_available,
+            self._on_set_scrape_job_info
+        )
 
     @property
     def port(self):
         """Return the port that node-exporter listens to."""
         return self.model.config.get("listen-address").split(":")[1]
+
+    @property
+    def topology(self):
+        return JujuTopology.from_charm(self).as_dict(excluded_keys=["juju_unit", "host"])
 
     def _on_install(self, event):
         logger.debug("## Installing charm")
@@ -68,12 +80,15 @@ class NodeExporterCharm(CharmBase):
 
         params = dict()
         params["listen_address"] = self.model.config.get("listen-address")
-
         logger.debug(f"## Configuration options: {params}")
         _render_sysconfig(params)
         subprocess.call(["systemctl", "restart", "node_exporter"])
+        self._on_set_scrape_job_info(event)
 
-        self.prometheus.set_host_port()
+    def _on_set_scrape_job_info(self, event):
+        """Update prometheus scrape config."""
+        if self.framework.model.unit.is_leader():
+            self._prometheus.set_scrape_job_info()
 
     def _on_start(self, event):
         logger.debug("## Starting daemon")

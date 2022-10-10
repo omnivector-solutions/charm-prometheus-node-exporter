@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 """Prometheus."""
+import json
 import logging
 
 from ops.framework import Object
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,19 +29,27 @@ class Prometheus(Object):
 
     def _on_relation_created(self, event):
         logger.debug("## Relation created with prometheus")
-        self.set_host_port()
+        if self.framework.model.unit.is_leader():
+            self.set_scrape_job_info()
 
-    def set_host_port(self):
-        """Set hostname and port in the relation data."""
-        logger.debug("## set_host_port")
-
-        if self._relation:
-            relation_data = self._relation.data.get(self.model.unit)
-            if relation_data:
-                port = self._charm.port
-                host = relation_data['ingress-address']
-                logger.debug(f"## Setting host and port in prometheus {host}:{port}")
-
-                relation_data['hostname'] = host
-                relation_data['port'] = port
-                relation_data['metrics_path'] = "/metrics"
+    def set_scrape_job_info(self):
+        """Set scrape job info on relation data."""
+        relation = self.framework.model.get_relation(self._relation_name)
+        topology = self._charm.topology
+        if relation:
+            addresses = self._charm.node_exporter_peer.get_peer_addresses()
+            port = self._charm.port
+            scrape_jobs = [
+                {
+                    "job_name": "node_exporter",
+                    "metrics_path": "/metrics",
+                    "static_configs": [
+                        {
+                            "targets": [f"{ip}:{port}" for ip in addresses],
+                            "labels": {k:v for k,v in topology.items()},
+                        }
+                    ]
+                }
+            ]
+            app_relation_data = relation.data[self.model.app]
+            scrape_jobs = app_relation_data['scrape_jobs'] = json.dumps(scrape_jobs)

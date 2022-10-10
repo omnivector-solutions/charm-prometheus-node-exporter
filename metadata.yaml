@@ -23,5 +23,9 @@ requires:
     scope: container
 
 provides:
-  prometheus:
-    interface: prometheus
+  metrics-endpoint:
+    interface: prometheus_scrape
+
+peers:
+  node-exporter-peer:
+    interface: node-exporter-peer
