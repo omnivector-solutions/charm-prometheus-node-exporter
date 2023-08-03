@@ -4,7 +4,7 @@ help:
 
 .PHONY: version
 version: ## Create/update version file
-	@git describe --dirty --tags > version
+	@git describe --dirty --tags --always > version
 
 .PHONY: clean
 clean: ## Remove build dirs, temp files, and charms
@@ -17,6 +17,7 @@ clean: ## Remove build dirs, temp files, and charms
 .PHONY: charm
 charm: version ## Pack the charm
 	@charmcraft pack
+	@mv prometheus-node-exporter_* prometheus-node-exporter.charm
 
 .PHONY: lint
 lint: ## Run linter
