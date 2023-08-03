@@ -17,7 +17,7 @@ clean: ## Remove build dirs, temp files, and charms
 .PHONY: charm
 charm: version ## Pack the charm
 	@charmcraft pack
-	@mv prometheus-node-exporter_* prometheus-node-exporter.charm
+	@mv prometheus-node-exporter_*.charm prometheus-node-exporter.charm
 
 .PHONY: lint
 lint: ## Run linter
