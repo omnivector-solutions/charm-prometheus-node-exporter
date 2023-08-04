@@ -1,2 +1,2 @@
-ops >= 1.2.0
+ops
 jinja2
