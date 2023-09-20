@@ -25,7 +25,3 @@ requires:
 provides:
   metrics-endpoint:
     interface: prometheus_scrape
-
-peers:
-  node-exporter-peer:
-    interface: node-exporter-peer

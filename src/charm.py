@@ -3,26 +3,34 @@
 # See LICENSE file for licensing details.
 
 """Prometheus Node Exporter Charm."""
-
 import logging
 import os
 import shlex
 import shutil
 import subprocess
 import tarfile
+
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib import request
-
-from jinja2 import Environment, FileSystemLoader
 
 from ops.charm import CharmBase
 from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus
 
-from juju_topology import JujuTopology
-from prometheus_node_exporter import Prometheus
-from prometheus_node_exporter_peer import NodeExporterPeer
+
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+
+
+JOBS = [
+    {
+        "static_configs": [
+            {
+                "targets": ["*:9100"]
+            }
+        ]
+    }
+]
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +41,7 @@ class NodeExporterCharm(CharmBase):
     def __init__(self, *args):
         """Initialize charm."""
         super().__init__(*args)
-
-        self._prometheus = Prometheus(self, "metrics-endpoint")
-        self.node_exporter_peer = NodeExporterPeer(self, "node-exporter-peer")
+        self.metrics_endpoint = MetricsEndpointProvider(self, jobs=JOBS)
 
         # juju core hooks
         self.framework.observe(self.on.install, self._on_install)
@@ -43,26 +49,15 @@ class NodeExporterCharm(CharmBase):
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.start, self._on_start)
         self.framework.observe(self.on.stop, self._on_stop)
-        # NodeExporterPeer
-        self.framework.observe(
-            self.node_exporter_peer.on.node_exporter_peer_available,
-            self._on_set_scrape_job_info
-        )
-
-    @property
-    def port(self):
-        """Return the port that node-exporter listens to."""
-        return self.model.config.get("listen-address").split(":")[1]
-
-    @property
-    def topology(self):
-        return JujuTopology.from_charm(self).as_dict(excluded_keys=["juju_unit", "host"])
 
     def _on_install(self, event):
         logger.debug("## Installing charm")
         self.unit.status = MaintenanceStatus("Installing node-exporter")
         self._set_charm_version()
-        _install_node_exporter(self.model.config.get("node-exporter-version"))
+        _install_node_exporter(
+            self.model.config.get('listen-address'),
+            self.model.config.get("node-exporter-version")
+        )
 
         self.unit.status = ActiveStatus("node-exporter installed")
 
@@ -78,17 +73,9 @@ class NodeExporterCharm(CharmBase):
         """Handle configuration updates."""
         logger.debug("## Configuring charm")
 
-        params = dict()
-        params["listen_address"] = self.model.config.get("listen-address")
-        logger.debug(f"## Configuration options: {params}")
-        _render_sysconfig(params)
+        _render_sysconfig(self.model.config.get("listen-address"))
         subprocess.call(["systemctl", "restart", "node_exporter"])
-        self._on_set_scrape_job_info(event)
-
-    def _on_set_scrape_job_info(self, event):
-        """Update prometheus scrape config."""
-        if self.framework.model.unit.is_leader():
-            self._prometheus.set_scrape_job_info()
+        #self._on_set_scrape_job_info(event)
 
     def _on_start(self, event):
         logger.debug("## Starting daemon")
@@ -106,7 +93,7 @@ class NodeExporterCharm(CharmBase):
         self.unit.set_workload_version(Path("version").read_text().strip())
 
 
-def _install_node_exporter(version: str, arch: str = "amd64"):
+def _install_node_exporter(listen_address: str, version: str, arch: str = "amd64"):
     """Download appropriate files and install node-exporter.
 
     This function downloads the package, extracts it to /usr/bin/, create
@@ -140,7 +127,7 @@ def _install_node_exporter(version: str, arch: str = "amd64"):
 
     _create_node_exporter_user_group()
     _create_systemd_service_unit()
-    _render_sysconfig({"listen_address": "0.0.0.0:9100"})
+    _render_sysconfig(listen_address)
 
 
 def _uninstall_node_exporter():
@@ -183,7 +170,7 @@ def _create_systemd_service_unit():
     subprocess.call(["systemctl", "enable", service])
 
 
-def _render_sysconfig(context: dict) -> None:
+def _render_sysconfig(listen_address: str) -> None:
     """Render the sysconfig file.
 
     `context` should contain the following keys:
@@ -192,8 +179,7 @@ def _render_sysconfig(context: dict) -> None:
     logger.debug("## Writing sysconfig file")
 
     charm_dir = os.path.dirname(os.path.abspath(__file__))
-    template_dir = Path(charm_dir) / "templates"
-    template_file = "node_exporter.tmpl"
+    template_file = Path(charm_dir) / "templates" / "node_exporter.tmpl"
 
     sysconfig = Path("/etc/sysconfig/")
     if not sysconfig.exists():
@@ -206,13 +192,14 @@ def _render_sysconfig(context: dict) -> None:
     shutil.chown(varlib, user="node_exporter", group="node_exporter")
     shutil.chown(textfile_dir, user="node_exporter", group="node_exporter")
 
-    environment = Environment(loader=FileSystemLoader(template_dir))
-    template = environment.get_template(template_file)
+    template_as_string = template_file.read_text()
 
     target = sysconfig / "node_exporter"
     if target.exists():
         target.unlink()
-    target.write_text(template.render(context))
+
+
+    target.write_text(template_as_string.format(listen_address=listen_address))
 
 
 if __name__ == "__main__":
